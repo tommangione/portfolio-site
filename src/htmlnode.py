@@ -69,7 +69,8 @@ class LeafNode(HTMLNode):
         super().__init__(tag, value, None, props)
 
     def to_html(self):
-        simple_tags = ["p", "b", "i", "div", "span"]
+        simple_tags = ["p", "b", "i", "div",
+                       "span", "li", "blockquote" "code"]
         if self.value is None:
             raise ValueError("missing value")
         if self.tag in simple_tags:
@@ -77,9 +78,9 @@ class LeafNode(HTMLNode):
         elif self.tag == "a" and self.props is not None:
             return ('<a href="' + self.props["href"]
                     + '">' + self.value + '</a>')
-        elif self.tag == "img" and self.props is not None:
+        elif self.tag == "img":
             return ('<img src="' + self.props["src"]
-                    + '" alt="' + self.value + '"/>')
+                    + '" alt="' + self.props["alt"] + '">')
         else:
             return self.value
 

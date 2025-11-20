@@ -34,9 +34,10 @@ class TestHTMLNode(unittest.TestCase):
                                           'Click me!</a>'))
 
     def test_leaf_to_html_img(self):
-        node = LeafNode("img", "example_alt", {"src": "/example/path.jpg"})
+        node = LeafNode("img", "", {"src": "/example/path.jpg",
+                                    "alt": "example_alt"})
         self.assertEqual(node.to_html(), ('<img src="/example/path.jpg" '
-                                          'alt="example_alt"/>'))
+                                          'alt="example_alt">'))
 
     def test_node_to_html(self):
         node = ParentNode(

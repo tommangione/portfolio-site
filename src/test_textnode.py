@@ -1,6 +1,7 @@
 import unittest
 
 from textnode import TextNode, TextType
+from htmlnode import LeafNode, HTMLNode, ParentNode
 
 
 class TestTextNode(unittest.TestCase):
@@ -28,6 +29,25 @@ class TestTextNode(unittest.TestCase):
         node9 = TextNode("Text time", TextType.PLAIN)
         node10 = TextNode("Text time", TextType.ITALIC)
         self.assertNotEqual(node9, node10)
+
+    def test_text(self):
+        node = TextNode("This is a text node", TextType.TEXT)
+        html_node = node.text_node_to_html_node()
+        self.assertEqual(html_node.tag, None)
+        self.assertEqual(html_node.value, "This is a text node")
+
+    def test_link(self):
+        node = TextNode("This is a link", TextType.LINK, "www.x.com")
+        html_node = node.text_node_to_html_node().to_html()
+        self.assertEqual(html_node, '<a href="www.x.com">This is a link</a>')
+
+    def test_image(self):
+        node = TextNode("alt_text", TextType.IMAGE, "image.com")
+        html_node = node.text_node_to_html_node()
+        print(html_node)
+        html_node = html_node.to_html()
+        self.assertEqual(html_node, ('<img src="image.com" alt="alt_text">'))
+
 
 if __name__ == "__main__":
     unittest.main()
