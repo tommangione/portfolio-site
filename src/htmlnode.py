@@ -69,26 +69,41 @@ class LeafNode(HTMLNode):
         super().__init__(tag, value, None, props)
 
     def to_html(self):
+        simple_tags = ["p", "b", "i", "div", "span"]
         if self.value is None:
-            raise ValueError
-        if self.tag is None:
-            return self.value
-        elif self.tag == "p":
-            return "<p>" + self.value + "</p>"
-        elif self.tag == "b":
-            return "<b>" + self.value + "</b>"
-        elif self.tag == "i":
-            return "<i>" + self.value + "</i>"
+            raise ValueError("missing value")
+        if self.tag in simple_tags:
+            return f'<{self.tag}>{self.value}</{self.tag}>'
         elif self.tag == "a" and self.props is not None:
-            my_dict = self.props
-            return '<a href="' + my_dict["href"] + '">' + self.value + '</a>'
+            return ('<a href="' + self.props["href"]
+                    + '">' + self.value + '</a>')
         elif self.tag == "img" and self.props is not None:
-            my_dict = self.props
-            return ('<img src="' + my_dict["src"]
+            return ('<img src="' + self.props["src"]
                     + '" alt="' + self.value + '"/>')
-        raise Exception("Reformat to p, b, i, a, or img")
+        else:
+            return self.value
 
 
 class ParentNode(HTMLNode):
     def __init__(self, tag, children, props=None):
-        super().__init__(tag, None, children, props)
+        super().__init__(tag, None, children,
+                         props if props is not None else {})
+
+    def to_html(self):
+        if self.tag is None:
+            raise ValueError("missing tag")
+        if self.children is None:
+            raise ValueError("where are your children???")
+        beginning_tag = f"<{self.tag}" + (f" {self.props_to_html()}"
+                                          if self.props else "") + ">"
+        children_html = ''.join([child.to_html() for child in self.children])
+        return beginning_tag + children_html + f"</{self.tag}>"
+
+    def to_html_recursive_helper(self):
+        output_string = ""
+        if not self.children:
+            return output_string
+        else:
+            for child in self.children:
+                output_string += child.to_html()
+            return output_string
