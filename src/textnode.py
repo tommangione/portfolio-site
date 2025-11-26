@@ -32,8 +32,6 @@ class TextNode:
     def text_node_to_html_node(self):
         if self.text_type == TextType.TEXT:
             return LeafNode(None, self.text)
-        if self.text_type == TextType.PLAIN:
-            return LeafNode("p", self.text)
         if self.text_type == TextType.BOLD:
             return LeafNode("b", self.text)
         if self.text_type == TextType.ITALIC:
@@ -52,7 +50,7 @@ def split_nodes_delimiter(old_nodes, delimiter, text_type):
     new_nodes = []
     del_list = ["`", "*", "_"]
     for node in old_nodes:
-        if node.text_type == TextType.TEXT:
+        if node.text_type == TextType.TEXT or node.text_type == TextType.PLAIN:
             split_text = node.text.split(delimiter)
             if "" in split_text:
                 split_text.remove("")
@@ -91,3 +89,75 @@ def split_nodes_delimiter(old_nodes, delimiter, text_type):
         else:
             new_nodes.append(node)
     return new_nodes
+
+
+def extract_markdown_images(text):
+    return (re.findall(r"!\[([^\[\]]*)\]\(([^\(\)]*)\)", text))
+
+
+def extract_markdown_links(text):
+    return (re.findall(r"(?<!!)\[([^\[\]]*)\]\(([^\(\)]*)\)", text))
+
+
+# both of the next two functions will take an input list of text nodes and
+# output a list of nodes with properly formatted links or images
+
+def split_nodes_image(old_nodes):
+    new_nodes = []
+    for node in old_nodes:
+        p = node.text_type
+        if (p == TextType.IMAGE) or (p == TextType.LINK):
+            new_nodes.append(node)
+        elif node.text == "":
+            pass
+        elif extract_markdown_images(node.text) == []:
+            new_nodes.append(node)
+        else:
+            current_text = node.text
+            extracted_images = extract_markdown_images(node.text)
+            for tuple in extracted_images:
+                image_md = f"![{tuple[0]}]({tuple[1]})"
+                before, after = current_text.split(image_md, 1)
+                if before != "":
+                    new_nodes.append(TextNode(before, TextType.TEXT))
+                new_nodes.append(TextNode((tuple[0]),
+                                          TextType.IMAGE, tuple[1]))
+                current_text = after
+            if current_text != "":
+                new_nodes.append(TextNode(current_text, TextType.TEXT))
+    return new_nodes
+
+
+def split_nodes_link(old_nodes):
+    new_nodes = []
+    for node in old_nodes:
+        p = node.text_type
+        if (p == TextType.IMAGE) or (p == TextType.LINK):
+            new_nodes.append(node)
+        elif node.text == "":
+            pass
+        elif extract_markdown_links(node.text) == []:
+            new_nodes.append(node)
+        else:
+            current_text = node.text
+            extracted_links = extract_markdown_links(node.text)
+            for tuple in extracted_links:
+                link_md = f"[{tuple[0]}]({tuple[1]})"
+                before, after = current_text.split(link_md, 1)
+                if before != "":
+                    new_nodes.append(TextNode(before, TextType.TEXT))
+                new_nodes.append(TextNode((tuple[0]), TextType.LINK, tuple[1]))
+                current_text = after
+            if current_text != "":
+                new_nodes.append(TextNode(current_text, TextType.TEXT))
+    return new_nodes
+
+
+def text_to_textnodes(text):
+    initial_node = TextNode(text, TextType.PLAIN)
+    find_bold = split_nodes_delimiter([initial_node], "**", TextType.BOLD)
+    find_italic = split_nodes_delimiter(find_bold, "_", TextType.ITALIC)
+    find_code = split_nodes_delimiter(find_italic, "`", TextType.CODE)
+    find_images = split_nodes_image(find_code)
+    final_list = split_nodes_link(find_images)
+    return final_list
