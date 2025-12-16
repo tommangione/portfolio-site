@@ -1,6 +1,6 @@
 import re
 from enum import Enum
-from htmlnode import LeafNode
+from htmlnode import LeafNode, ParentNode
 
 
 class TextType(Enum):
@@ -30,7 +30,7 @@ class TextNode:
         return f"TextNode({self.text}, {self.text_type}, {self.url})"
 
     def text_node_to_html_node(self):
-        if self.text_type == TextType.TEXT:
+        if self.text_type in (TextType.TEXT, TextType.PLAIN):
             return LeafNode(None, self.text)
         if self.text_type == TextType.BOLD:
             return LeafNode("b", self.text)
@@ -48,46 +48,34 @@ class TextNode:
 
 def split_nodes_delimiter(old_nodes, delimiter, text_type):
     new_nodes = []
-    del_list = ["`", "*", "_"]
     for node in old_nodes:
-        if node.text_type == TextType.TEXT or node.text_type == TextType.PLAIN:
-            split_text = node.text.split(delimiter)
-            if "" in split_text:
-                split_text.remove("")
-            if (node.text[0] in del_list) ^ (node.text[-1] in del_list):
-                if len(split_text) % 2 == 1:
-                    raise Exception("missing delimiter")
-                if node.text[0] in del_list:
-                    counter = 0
-                    for member in split_text:
-                        if counter % 2 == 0:
-                            type_writer = text_type
-                        else:
-                            type_writer = TextType.TEXT
-                        new_nodes.append(TextNode(member, type_writer))
-                        counter += 1
-                else:
-                    counter = 0
-                    for member in split_text:
-                        if counter % 2 == 1:
-                            type_writer = text_type
-                        else:
-                            type_writer = TextType.TEXT
-                        new_nodes.append(TextNode(member, type_writer))
-                        counter += 1
-            else:
-                if len(split_text) % 2 == 0:
-                    raise Exception("missing delimiter")
-                counter = 0
-                for member in split_text:
-                    if counter % 2 == 1:
-                        type_writer = text_type
-                    else:
-                        type_writer = TextType.TEXT
-                    new_nodes.append(TextNode(member, type_writer))
-                    counter += 1
-        else:
+        # leave non-plain/text nodes alone
+        if node.text_type not in (TextType.TEXT, TextType.PLAIN):
             new_nodes.append(node)
+            continue
+
+        text = node.text
+        # if no delimiter in this node, keep it as-is
+        if delimiter not in text:
+            new_nodes.append(node)
+            continue
+
+        parts = text.split(delimiter)
+
+        # even number of parts -> odd number of delimiters -> missing a match
+        if len(parts) % 2 == 0:
+            raise Exception("missing delimiter")
+
+        for i, part in enumerate(parts):
+            if part == "":
+                continue
+            if i % 2 == 0:
+                # outside delimiters: normal text
+                new_nodes.append(TextNode(part, TextType.TEXT))
+            else:
+                # inside delimiters: special type
+                new_nodes.append(TextNode(part, text_type))
+
     return new_nodes
 
 
@@ -161,3 +149,134 @@ def text_to_textnodes(text):
     find_images = split_nodes_image(find_code)
     final_list = split_nodes_link(find_images)
     return final_list
+
+
+def markdown_to_blocks(markdown):
+    output = []
+    blocks = markdown.split("\n\n")
+    for block in blocks:
+        block = block.strip()
+        while block[:1] == '\n':
+            block = block[1:]
+        while block[-1:] == '\n':
+            block = block[:-1]
+        if block.replace('\n', '').replace('\r', '') != "":
+            output.append(block)
+    return output
+
+
+class BlockType(Enum):
+    paragraph = "paragraph"
+    heading = "heading"
+    code = "code"
+    quote = "quote"
+    unordered_list = "unordered_list"
+    ordered_list = "ordered_list"
+
+
+def block_to_block_type(md_block):
+    md_block_lines = md_block.splitlines()
+    if md_block[0] == "#":
+        return BlockType.heading
+    elif md_block[:3] == "```" and md_block[-3:] == "```":
+        return BlockType.code
+    elif md_block[0] == ">":
+        isQuote = True
+        for line in md_block_lines:
+            if line[0] != ">":
+                isQuote = False
+        if isQuote:
+            return BlockType.quote
+    elif md_block[:2] == "- ":
+        isUnorderedList = True
+        for line in md_block_lines:
+            if line[:2] != "- ":
+                isUnorderedList = False
+        if isUnorderedList:
+            return BlockType.unordered_list
+    elif md_block_lines[0].split('.')[0].isdigit():
+        isOrderedList = True
+        for line in md_block_lines:
+            if line.split('.')[0].isdigit is False:
+                isOrderedList = False
+        if isOrderedList:
+            return BlockType.ordered_list
+    else:
+        return BlockType.paragraph
+
+
+# converts entire document to a single parent HTML node
+def markdown_to_html_node(markdown):
+    children = []
+    blocks = markdown_to_blocks(markdown)
+    for block in blocks:
+        block_type = block_to_block_type(block)
+        block_node = block_to_html_node(block, block_type)
+        children.append(block_node)
+    return ParentNode("div", children)
+
+
+def block_to_html_node(block, block_type):
+    if block_type == BlockType.heading:
+        output = []
+        header_counter = 0
+        while block[0] == "#":
+            header_counter += 1
+            block = block[1:]
+        block = block.strip()
+        if header_counter > 6:
+            header_counter = 6
+        textnodes = text_to_textnodes(block)
+        for textnode in textnodes:
+            entry = textnode.text_node_to_html_node()
+            output.append(entry)
+        return ParentNode(f"h{header_counter}", output)
+    elif block_type == BlockType.code:
+        lines = block.splitlines()
+        code_text = "\n".join(lines[1:-1]) + "\n"
+        code_node = LeafNode("code", code_text)
+        return ParentNode("pre", [code_node])
+    elif block_type == BlockType.quote:
+        output = []
+        lines = block.splitlines()
+        stripped_lines = [line.lstrip("> ").lstrip(">") for line in lines]
+        text = " ".join(stripped_lines)
+        textnodes = text_to_textnodes(text)
+        for textnode in textnodes:
+            entry = textnode.text_node_to_html_node()
+            output.append(entry)
+        return ParentNode("blockquote", output)
+    elif block_type == BlockType.unordered_list:
+        output = []
+        lines = block.splitlines()
+        for line in lines:
+            line = line.lstrip("- ")
+            nodes = text_to_textnodes(line)
+            nodes_html = []
+            for node in nodes:
+                entry = node.text_node_to_html_node()
+                nodes_html.append(entry)
+            output.append(ParentNode("li", nodes_html))
+        return ParentNode("ul", output)
+    elif block_type == BlockType.ordered_list:
+        output = []
+        lines = block.splitlines()
+        for line in lines:
+            line = line.split(". ", 1)[1]
+            nodes = text_to_textnodes(line)
+            nodes_html = []
+            for node in nodes:
+                entry = node.text_node_to_html_node()
+                nodes_html.append(entry)
+            output.append(ParentNode("li", nodes_html))
+        return ParentNode("ol", output)
+    elif block_type == BlockType.paragraph:
+        output = []
+        block = block.replace("\n", " ")
+        textnodes = text_to_textnodes(block)
+        for textnode in textnodes:
+            entry = textnode.text_node_to_html_node()
+            output.append(entry)
+        return ParentNode("p", output)
+    else:
+        raise Exception("Block Type not recognized")
