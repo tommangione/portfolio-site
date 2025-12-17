@@ -1,6 +1,8 @@
 # from textnode import TextNode
 import os
 import shutil
+from textnode import *
+from htmlnode import *
 
 
 def main():
@@ -14,16 +16,50 @@ def main():
     except Exception as e:
         print(f"Error: {e}")
         return
-    generate_page()
+    try:
+        generate_page('content/index.md', 'template.html', 'public/index.html')
+    except Exception as bad:
+        print(f"Error: {bad}")
+    return
 
 
 def generate_page(from_path, template_path, dest_path):
-    from = ""
+    from_doc = ""
     template = ""
+
     print("Generating webpage...")
+
     print(f"from path = {from_path}")
+    from_path = os.path.abspath(from_path)
+
     print(f"template path = {template_path}")
+    template_path = os.path.abspath(template_path)
+
     print(f"destination path = {dest_path}")
+    dest_path = os.path.abspath(dest_path)
+
+    with open(from_path) as f:
+        from_doc = f.read()
+
+    from_html = markdown_to_html_node(from_doc).to_html()
+
+    title = extract_title(from_doc)
+
+    with open(template_path) as g:
+        page = g.read()
+
+    tit_placeholder = '{{ Title }}'
+    con_placeholder = '{{ Content }}'
+
+    page = page.replace(tit_placeholder, title)
+    page = page.replace(con_placeholder, from_html)
+
+    try:
+        with open(dest_path, 'w', encoding="utf-8") as h:
+            h.write(page)
+            print(f"Generated page at {dest_path}")
+    except IOError as er:
+        print(f"Error occurred while writing to {dest_path}: {er}")
 
 def extract_title(markdown):
     md_lines = markdown.splitlines()
