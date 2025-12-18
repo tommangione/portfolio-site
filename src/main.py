@@ -115,15 +115,15 @@ def extract_title(markdown):
     return title
 
 
-def deleteCheck():
+def deleteCheck(destination):
     choice = ""
-    print("This action will delete the 'public' folder within this directory.")
+    print(f"This action will delete all contents from {destination} directory.")
     print("Would you like to proceed? Enter y to continue.")
     choice = input()
     if choice == "y":
-        shutil.rmtree(os.path.abspath("public"))
+        shutil.rmtree(os.path.abspath(destination))
     else:
-        raise Exception("Directory 'public' not cleared.")
+        raise Exception("Directory {destination} not cleared.")
 
 
 def recursive_copy(source, destination):
@@ -138,7 +138,7 @@ def recursive_copy(source, destination):
     if not os.path.exists(destination):
         os.makedirs(destination)
     else:
-        deleteCheck()
+        deleteCheck(destination)
         os.makedirs(destination)
 
     for item in os.listdir(source):
