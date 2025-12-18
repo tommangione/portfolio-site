@@ -3,3 +3,4 @@
 ### Easy to self-host or github.io-host.
 
 Personal website project using python to create a static site generator that translates markdown to HTML.
+Content is still placeholder text, will be updated upon completion of initial website.
