@@ -16,16 +16,22 @@ def main():
     except Exception as e:
         print(f"Error: {e}")
         return
+
+    # try:
+        # generate_page('content/index.md', 'template.html', 'public/index.html')
+    # except Exception as bad:
+        # print(f"Error: {bad}")
+
     try:
-        generate_page('content/index.md', 'template.html', 'public/index.html')
+        generate_page_recursive('content', 'template.html', 'public')
     except Exception as bad:
         print(f"Error: {bad}")
+
     return
 
 
 def generate_page(from_path, template_path, dest_path):
     from_doc = ""
-    template = ""
 
     print("Generating webpage...")
 
@@ -60,6 +66,29 @@ def generate_page(from_path, template_path, dest_path):
             print(f"Generated page at {dest_path}")
     except IOError as er:
         print(f"Error occurred while writing to {dest_path}: {er}")
+
+
+def generate_page_recursive(dir_path_content, template_path, dest_dir_path):
+    dir_path_content = os.path.abspath(dir_path_content)
+    template_path = os.path.abspath(template_path)
+    dest_dir_path = os.path.abspath(dest_dir_path)
+
+    os.makedirs(dest_dir_path, exist_ok=True)
+
+    directory = os.listdir(dir_path_content)
+
+    for entry in directory:
+        new_source_path = os.path.join(dir_path_content, entry)
+        new_dest_path = os.path.join(dest_dir_path, entry)
+        if os.path.isdir(new_source_path):
+            generate_page_recursive(new_source_path, template_path,
+                                    new_dest_path)
+        elif os.path.isfile(new_source_path) and entry[-3:] == ".md":
+            dest_html_path = os.path.join(dest_dir_path, entry[:-3] + ".html")
+            generate_page(new_source_path, template_path, dest_html_path)
+        else:
+            pass
+
 
 def extract_title(markdown):
     md_lines = markdown.splitlines()
