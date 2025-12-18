@@ -1,4 +1,4 @@
-# from textnode import TextNode
+import sys
 import os
 import shutil
 from textnode import *
@@ -10,27 +10,27 @@ def main():
     # example = TextNode("example time", "link", "www.example.com")
     # print(example.__repr__())
 
+    basepath = "/"
+
+    if len(sys.argv) > 1:
+        basepath = sys.argv[1]
+
     try:
-        recursive_copy("static", "public")
+        recursive_copy("static", "docs")
         print("Successfully copied static directory to public.")
     except Exception as e:
         print(f"Error: {e}")
         return
 
-    # try:
-        # generate_page('content/index.md', 'template.html', 'public/index.html')
-    # except Exception as bad:
-        # print(f"Error: {bad}")
-
     try:
-        generate_page_recursive('content', 'template.html', 'public')
+        generate_page_recursive('content', 'template.html', 'docs', basepath)
     except Exception as bad:
         print(f"Error: {bad}")
 
     return
 
 
-def generate_page(from_path, template_path, dest_path):
+def generate_page(from_path, template_path, dest_path, basepath):
     from_doc = ""
 
     print("Generating webpage...")
@@ -59,6 +59,8 @@ def generate_page(from_path, template_path, dest_path):
 
     page = page.replace(tit_placeholder, title)
     page = page.replace(con_placeholder, from_html)
+    page = page.replace('href="/', f'href="{basepath}')
+    page = page.replace('src="/', f'src="{basepath}')
 
     try:
         with open(dest_path, 'w', encoding="utf-8") as h:
@@ -68,7 +70,11 @@ def generate_page(from_path, template_path, dest_path):
         print(f"Error occurred while writing to {dest_path}: {er}")
 
 
-def generate_page_recursive(dir_path_content, template_path, dest_dir_path):
+def generate_page_recursive(dir_path_content,
+                            template_path,
+                            dest_dir_path,
+                            basepath,
+                            ):
     dir_path_content = os.path.abspath(dir_path_content)
     template_path = os.path.abspath(template_path)
     dest_dir_path = os.path.abspath(dest_dir_path)
@@ -81,11 +87,18 @@ def generate_page_recursive(dir_path_content, template_path, dest_dir_path):
         new_source_path = os.path.join(dir_path_content, entry)
         new_dest_path = os.path.join(dest_dir_path, entry)
         if os.path.isdir(new_source_path):
-            generate_page_recursive(new_source_path, template_path,
-                                    new_dest_path)
+            generate_page_recursive(new_source_path,
+                                    template_path,
+                                    new_dest_path,
+                                    basepath,
+                                    )
         elif os.path.isfile(new_source_path) and entry[-3:] == ".md":
             dest_html_path = os.path.join(dest_dir_path, entry[:-3] + ".html")
-            generate_page(new_source_path, template_path, dest_html_path)
+            generate_page(new_source_path,
+                          template_path,
+                          dest_html_path,
+                          basepath,
+                          )
         else:
             pass
 
